@@ -6,7 +6,7 @@ contains
 subroutine EqMot(x,v,GM,c,k)
 real(mp), intent(in), dimension(2) :: x, v
 real(mp), intent(in) :: GM, c
-real(mp), intent(out), dimension(2) :: k
+real(mp), intent(out), dimension(4) :: k
 real(mp) :: C1, C2, r
 
     r=sqrt(x(1)**2+x(2)**2)
@@ -14,8 +14,10 @@ real(mp) :: C1, C2, r
     C1=-(c*c+v(1)*v(1)+v(2)*v(2)-4*GM/r)
     C2=4*(v(1)*x(1)+v(2)*x(2))
 
-    k(1)=(C1*x(1)+C2*v(1))*GM/(c*c*r*r*r)
-    k(2)=(C1*x(2)+C2*v(2))*GM/(c*c*r*r*r)
+    k(1)=v(1)
+    k(2)=v(2)
+    k(3)=(C1*x(1)+C2*v(1))*GM/(c**2*r**3)
+    k(4)=(C1*x(2)+C2*v(2))*GM/(c**2*r**3)
 
 end subroutine EqMot
 
@@ -26,7 +28,7 @@ real(mp), intent(in), dimension(2) :: Coord0, Velocity0   !Initial Values
 real(mp), intent(out), dimension(0:amount,2) :: Coord, Velocity
 real(mp), parameter :: c=3.2072e+6 !Speed of light 
 real(mp) :: r  !r is module of Coord vector
-real(mp), dimension(4,2) :: k  !RK4 coefficients
+real(mp), dimension(4,4) :: k  !RK4 coefficients
 integer(4) :: i
 
     Coord(0,:)=Coord0(:)
@@ -34,16 +36,14 @@ integer(4) :: i
     r=sqrt(Coord0(1)**2+Coord0(2)**2)
     
     do i=1,amount
-
-        Coord(i,1)=Coord(i-1,1)+Velocity(i-1,1)*step
-        Coord(i,2)=Coord(i-1,2)+Velocity(i-1,2)*step   
        
         call EqMot(Coord(i-1,:),Velocity(i-1,:),GM,c,k(1,:))
-        call EqMot((Coord(i-1,:)+Coord(i,:))/2,Velocity(i-1,:)+step*k(1,:)/2,GM,c,k(2,:))
-        call EqMot((Coord(i-1,:)+Coord(i,:))/2,Velocity(i-1,:)+step*k(2,:)/2,GM,c,k(3,:))
-        call EqMot(Coord(i,:),Velocity(i-1,:)+step*k(3,:),GM,c,k(4,:))
+        call EqMot(Coord(i-1,:)+step*k(1,:2)/2,Velocity(i-1,:)+step*k(1,3:)/2,GM,c,k(2,:))
+        call EqMot(Coord(i-1,:)+step*k(2,:2)/2,Velocity(i-1,:)+step*k(2,3:)/2,GM,c,k(3,:))
+        call EqMot(Coord(i-1,:)+step*k(3,:2),Velocity(i-1,:)+step*k(3,3:),GM,c,k(4,:))
 
-        Velocity(i,:)=Velocity(i-1,:)+step/6*(k(1,:)+2*k(2,:)+2*k(3,:)+k(4,:))
+		Coord(i,:)=Coord(i-1,:)+step/6*(k(1,:2)+2*k(2,:2)+2*k(3,:2)+k(4,:2))
+        Velocity(i,:)=Velocity(i-1,:)+step/6*(k(1,3:)+2*k(2,3:)+2*k(3,3:)+k(4,3:))
  
         r=sqrt(Coord(i,1)**2+Coord(i,2)**2)
 

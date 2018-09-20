@@ -22,8 +22,8 @@ draw.circle(0,0,3e+11,density=5,
 #draw.circle(0,0,2.95e+9,density=5,
 #            angle=45)
 
-plot(Data1$E/50762.62-1, type="l", xlab="index", ylab=expression('E/E'[0]-1))
-sd(Data1$E/50762.62-1)
+plot(Data1$E-1, type="l", xlab="index", ylab=expression('E/E'[0]-1))
+sd(Data1$E/Data1$E[1]-1)
 plot(Data1$E, type="l")
 
 #Data1["r"] <- sqrt(Data1$x^2+Data1$y^2)

@@ -10,4 +10,4 @@ my_prec.mod: my_prec.f95
 exec: main.out
 	./main.out < Data.dat > result.dat
 plot: Graphic.R
-	./Graphic.R
+	Rscript ./Graphic.R

@@ -30,8 +30,8 @@ open(2,file="result.dat")
 
 write(2,*)"x, y, vx, vy, E"
 do i=0,amount
-   write(2,*)Coord(i,1)*2.95e+11,", ", Coord(i,2)*2.95e+11,", ", Velocity(i,1)*2.95e+11/3.156e+7,", ",&
-   Velocity(i,2)*2.95e+11/3.156e+7, ", ",Energy(i)
+   write(2,*)Coord(i,1)*2.95e+5,", ", Coord(i,2)*2.95e+5,", ", Velocity(i,1)*2.95e+5,", ",&
+   Velocity(i,2)*2.95e+5, ", ",Energy(i)
 enddo
 
 close(2)

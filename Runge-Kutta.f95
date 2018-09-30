@@ -44,7 +44,7 @@ integer(4), intent(in) :: amount
 real(mp), intent(in), dimension(2) :: Coord0, Velocity0   !Initial Values 
 real(mp), intent(out), dimension(0:amount,2) :: Coord, Velocity
 real(mp), intent(out), dimension(0:amount) :: Energy
-real(mp), parameter :: c=3.20727117779e+6 !Speed of light 
+real(mp), parameter :: c=101624.562 !Speed of light 
 real(mp) :: r  !r is module of Coord vector
 real(mp), dimension(4,4) :: k  !RK4 coefficients
 integer(4) :: i

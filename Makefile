@@ -8,6 +8,6 @@ Runge-Kutta.o: Runge-Kutta.f95 my_prec.mod
 my_prec.mod: my_prec.f95
 	$(G) -c $<
 exec: main.out
-	./main.out < Data.dat > result.dat
+	./main.out
 plot: Graphic.R
 	Rscript ./Graphic.R

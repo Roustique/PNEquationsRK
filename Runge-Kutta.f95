@@ -2,7 +2,7 @@ module RungeKuttaPNEquations
 use my_prec
 implicit none
 real(mp), parameter :: c=1.0 !Speed of light 
-real(mp), parameter :: G=1.47662 !Gravitational Parameter
+real(mp), parameter :: G=1.47662e-1 !Gravitational Parameter
 contains
 
 subroutine EqMotPostNewt(x,v,Mass,k)

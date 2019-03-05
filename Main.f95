@@ -26,7 +26,11 @@ allocate(Coord(0:amount,2),Velocity(0:amount,2),Energy(0:amount))
 
 call RKIntegrate(step, amount, Coord0, Velocity0, Mass, Coord, Velocity, Energy, Key)
 
-open(2,file="./output/result.dat")
+if (Key=="-N") then
+   open(2,file="./output/resultN.dat")
+elseif (Key=="-P") then
+   open(2,file="./output/resultP.dat")
+endif
 
 write(2,*)"x, y, vx, vy, E, L"
 do i=0,amount

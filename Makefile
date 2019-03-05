@@ -10,4 +10,4 @@ my_prec.mod: my_prec.f95
 exec: main.out
 	./main.out
 plot: Graphic.R
-	Rscript ./Graphic.R
+	python3 PlotDrawer.py

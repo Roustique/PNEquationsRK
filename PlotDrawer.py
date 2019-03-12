@@ -60,6 +60,9 @@ for i in np.arange(1,numberofturns+1):
     if (domega[i]-domega[i-1]<0):
         domega[i:]=domega[i:]+2*pi
 phiP = np.arctan2(yP, xP)
+for i in np.arange(1,n+1):
+    if (phiP[i]-phiP[i-1]<0):
+        phiP[i:]=phiP[i:]+2*pi
 phiProtated = np.empty(n+1)
 for i in np.arange(numberofturns):
     phiProtated[periarg[i]:periarg[i+1]] = (phiP-(domega[i+1]/timeweb[periarg[i+1]])*timeweb-omegaN)[periarg[i]:periarg[i+1]]
@@ -70,10 +73,16 @@ eccP = np.empty(numberofturns)
 for i in np.arange(numberofturns):
     ellipsemodel = odr.Model(ellipsepolar)
     data_to_fit = odr.Data(phiProtated[periarg[i]:periarg[i+1]], rP[periarg[i]:periarg[i+1]])
-    job = odr.ODR(data_to_fit, ellipsemodel, beta0=np.array([aN, eccN]))
+    job = odr.ODR(data_to_fit, ellipsemodel, beta0=np.array([aN, eccN+0.2]))
     results = job.run()
     aP[i], eccP[i] = results.beta
     
+
+precession = (domega[1:]/timeweb[periarg[1:]])/timescale
+meanprecession = np.mean(precession)
+
+asd = np.sqrt(np.sum((aP-np.mean(aP))**2))
+eccsd = np.sqrt(np.sum((eccP-np.mean(eccP))**2))
 
 #rNewtAnalyt = a*(1-ecc**2)/(1+ecc*(xN*np.cos(omega)+yN*np.sin(omega))/rN)
 #xNewtAnalyt = xN/rN*rNewtAnalyt

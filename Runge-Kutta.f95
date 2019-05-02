@@ -40,12 +40,12 @@ real(mp) :: gradphi, r
 
 end subroutine EqMotNewt
 
-subroutine RKIntegrate(step, amount, Coord0, Velocity0, Mass, Coord, Velocity, Energy, Key)
+subroutine RKIntegrate(step, amount, Coord0, Velocity0, Mass, Coord, Velocity, Energy, Angmom, Key)
 real(mp), intent(in) :: step, Mass
 integer(4), intent(in) :: amount
 real(mp), intent(in), dimension(2) :: Coord0, Velocity0   !Initial Values 
 real(mp), intent(out), dimension(0:amount,2) :: Coord, Velocity
-real(mp), intent(out), dimension(0:amount) :: Energy
+real(mp), intent(out), dimension(0:amount) :: Energy, Angmom
 real(mp) :: r  !r is module of Coord vector
 real(mp) :: v2 !v2 is scalar square of velocity
 real(mp), dimension(4,4) :: k  !RK4 coefficients
@@ -59,11 +59,13 @@ character(2), intent(in) :: Key
 
 	if (Key == "-P") then
 
-        Energy(0)=v2/2-G*Mass/r-(1/c**2)*(v2**2/8+3*G*Mass/2/r*v2-(G*Mass/r)**2/2)
+        Energy(0)=v2/2-G*Mass/r+(1/c**2)*(3/8*v2**2+G*Mass/2/r*3*v2+(G*Mass/r)**2/2)
+		Angmom(0)=(Coord0(1)*Velocity0(2)-Coord0(2)*Velocity0(1))*(1+v2/2/c**2+3*G*Mass/r/c**2)
 
 	elseif (Key == "-N") then
 
 		Energy(0)=v2/2-G*Mass/r
+		Angmom(0)=Coord0(1)*Velocity0(2)-Coord0(2)*Velocity0(1)
 
 	endif
     
@@ -97,11 +99,13 @@ character(2), intent(in) :: Key
 
 		if (Key == "-P") then
 
-        	Energy(i)=v2/2-G*Mass/r-(1/c**2)*(v2**2/8+3*G*Mass*v2/(2*r)-(G*Mass/r)**2/2)
+        	Energy(i)=v2/2-G*Mass/r+(1/c**2)*(3/8*v2**2+G*Mass/2/r*3*v2+(G*Mass/r)**2/2)
+			Angmom(i)=(Coord(i,1)*Velocity(i,2)-Coord(i,2)*Velocity(i,1))*(1+v2/2/c**2+3*G*Mass/r/c**2)
 
 		elseif (Key == "-N") then
 
 			Energy(i)=v2/2-G*Mass/r
+			Angmom(i)=Coord(i,1)*Velocity(i,2)-Coord(i,2)*Velocity(i,1)
 
 		endif
 

@@ -2,295 +2,350 @@
 # -*- coding: utf-8 -*-
 from matplotlib import pyplot as plt
 from matplotlib.ticker import MaxNLocator
+import matplotlib.font_manager as mfm
 import numpy as np
-import scipy
 from scipy import odr
 from scipy.signal import argrelextrema
-import math
 import datetime
 import os
 
-#plt.rc('font', family='Computer Modern')
-plt.rc('font', **{'family': 'serif', 'serif': ['Computer Modern'], 'size': 16})
-plt.rc('text', usetex=True)
-plt.rc('text.latex',unicode=True)
-plt.rc('text.latex',preamble=r'\usepackage[utf8]{inputenc}')
-plt.rc('text.latex',preamble=r'\usepackage[russian]{babel}')
+plt.rc('font', family='Geometria')
+
+pi = np.arctan(1.0) * 4.0
+G = 1.47662e-1
+timescale = 3.335640952e-5
+lengthscale = 10.0
 
 
-def ellipsepolar(B, phi):
-    return B[0]*(1-B[1]**2)/(1+B[1]*np.cos(phi))
+def ellipsepolar(b, phi):
+    return b[0] * (1 - b[1] ** 2) / (1 + b[1] * np.cos(phi))
 
 
-xN = np.loadtxt(open('./output/resultN.dat', 'r'), delimiter=', ', skiprows=1, usecols=(0,))
-yN = np.loadtxt(open('./output/resultN.dat', 'r'), delimiter=', ', skiprows=1, usecols=(1,))
-vxN = np.loadtxt(open('./output/resultN.dat', 'r'), delimiter=', ', skiprows=1, usecols=(2,))
-vyN = np.loadtxt(open('./output/resultN.dat', 'r'), delimiter=', ', skiprows=1, usecols=(3,))
-EN = np.loadtxt(open('./output/resultN.dat', 'r'), delimiter=', ', skiprows=1, usecols=(4,))
-LN = np.loadtxt(open('./output/resultN.dat', 'r'), delimiter=', ', skiprows=1, usecols=(5,))
-xP = np.loadtxt(open('./output/resultP.dat', 'r'), delimiter=', ', skiprows=1, usecols=(0,))
-yP = np.loadtxt(open('./output/resultP.dat', 'r'), delimiter=', ', skiprows=1, usecols=(1,))
-vxP = np.loadtxt(open('./output/resultP.dat', 'r'), delimiter=', ', skiprows=1, usecols=(2,))
-vyP = np.loadtxt(open('./output/resultP.dat', 'r'), delimiter=', ', skiprows=1, usecols=(3,))
-EP = np.loadtxt(open('./output/resultP.dat', 'r'), delimiter=', ', skiprows=1, usecols=(4,))
-LP = np.loadtxt(open('./output/resultP.dat', 'r'), delimiter=', ', skiprows=1, usecols=(5,))
+class Integraline:
 
-inputfile = open('./input/data.dat')
+    def __init__(self, dt, M):
+        self.x = np.empty(0)
+        self.y = np.empty(0)
+        self.vx = np.empty(0)
+        self.vy = np.empty(0)
+        self.E = np.empty(0)
+        self.L = np.empty(0)
+        self.r = np.empty(0)
+        self.phi = np.empty(0)
+        self.vabs = np.empty(0)
+        self.Enormed = np.empty(0)
+        self.Lnormed = np.empty(0)
+        self.timeweb = np.empty(0)
+        self.dt = dt
+        self.M = M
+
+
+    def readinputpars(self, file=open('./input/data.dat')):
+        self.dt = float(file.readline())
+        file.readline()
+        file.readline()
+        file.readline()
+        file.readline()
+        file.readline()
+        self.M = float(file.readline())
+
+    def readtxt(self, filename):
+        self.x = np.loadtxt(open(filename, 'r'), delimiter=", ", skiprows=1, usecols=(0,))
+        self.y = np.loadtxt(open(filename, 'r'), delimiter=", ", skiprows=1, usecols=(1,))
+        self.vx = np.loadtxt(open(filename, 'r'), delimiter=", ", skiprows=1, usecols=(2,))
+        self.vy = np.loadtxt(open(filename, 'r'), delimiter=", ", skiprows=1, usecols=(3,))
+        self.E = np.loadtxt(open(filename, 'r'), delimiter=", ", skiprows=1, usecols=(4,))
+        self.L = np.loadtxt(open(filename, 'r'), delimiter=", ", skiprows=1, usecols=(5,))
+        self.Enormed = self.E / self.E[0] - 1
+        self.Lnormed = self.L / self.L[0] - 1
+        self.r = np.sqrt(self.x ** 2 + self.y ** 2)
+        self.phi = np.arctan2(self.y, self.x)
+        for i in np.arange(1, self.size()):
+            if 0 > self.phi[i] - self.phi[i - 1]:
+                self.phi[i:] = self.phi[i:] + 2 * pi
+        self.vabs = np.sqrt(self.vx ** 2 + self.vy ** 2)
+        self.timeweb = np.arange(self.size()) * dt
+
+    def size(self):
+        return np.size(self.x)
+
+    def periloc0(self):
+        return np.insert(argrelextrema(self.r, np.less), 0, 0)
+
+    def number_of_full_turns(self):
+        return np.size(self.periloc0()) - 1
+
+    def turn_length(self):
+        n = np.size(self.periloc0())
+        return self.periloc0()[1:] - self.periloc0()[:n-1]
+
+    def turn_length_mean(self):
+        return np.mean(self.turn_length()[np.arange(self.number_of_full_turns())])
+
+    def periloc(self):
+        if abs(self.turn_length_mean() - self.periloc0()[1]) < 2:
+            return self.periloc0()
+        else:
+            return self.periloc0()[1:]
+
+    def omega(self):
+        om = np.arctan2(self.y[self.periloc()], self.x[self.periloc()])
+        for i in np.arange(1, self.number_of_full_turns() + 1):
+            if om[i] - om[i - 1] < 0:
+                om[i:] = om[i:] + 2 * pi
+        return om
+
+    def domega_turns(self):
+        return self.omega()[1:] - self.omega()[:(np.size(self.omega()) - 1)]
+
+    def domega_mean(self):
+        return np.mean(self.domega_turns())
+
+    def precession_turns(self):
+        return (self.domega_turns()[1:] / self.timeweb[self.periloc()[1:]]) / timescale
+
+    def precession_mean(self):
+        return np.mean(self.precession_turns())
+
+    def phi_rotated(self):
+        phir = np.empty(self.size())
+        for i in np.arange(self.number_of_full_turns()):
+            phir[self.periloc()[i]:self.periloc()[i + 1]] = (self.phi - (
+                    self.domega_turns()[i] / (self.timeweb[self.periloc()[i + 1]] - self.timeweb[self.periloc()[i]])) * self.timeweb - self.omega()[
+                                                                 0])[self.periloc()[i]:self.periloc()[i + 1]]
+        phir[self.periloc()[self.number_of_full_turns()]:] = (self.phi - (
+                self.domega_turns()[self.number_of_full_turns()-1] / (self.timeweb[
+            self.periloc()[self.number_of_full_turns()]]-self.timeweb[self.periloc()[self.number_of_full_turns()-1]])) * self.timeweb - self.omega()[0])[
+                                                             self.periloc()[self.number_of_full_turns()]:]
+        return phir
+
+    def fit_to_model(self):
+        ellipsemodel = odr.Model(ellipsepolar)
+        a = np.empty(self.number_of_full_turns())
+        ecc = np.empty(self.number_of_full_turns())
+        for i in np.arange(self.number_of_full_turns()):
+            data_to_fit = odr.Data(self.phi_rotated()[self.periloc()[i]:self.periloc()[i + 1]],
+                                   self.r[self.periloc()[i]:self.periloc()[i + 1]])
+            peri0 = self.r[self.periloc()[0]]
+            apo0 = self.r[int(self.periloc()[0] + self.turn_length()[0] / 2)]
+            a0 = (peri0 + apo0) / 2
+            ecc0 = (1 - peri0 / apo0) / (1 + peri0 / apo0)
+            job = odr.ODR(data_to_fit, ellipsemodel, beta0=np.array([a0, ecc0]))
+            results = job.run()
+            a[i], ecc[i] = results.beta
+        return a, ecc
+
+    def a_turns(self):
+        return self.fit_to_model()[0]
+
+    def ecc_turns(self):
+        return self.fit_to_model()[1]
+
+    def a_mean(self):
+        return np.mean(self.a_turns())
+
+    def ecc_mean(self):
+        return np.mean(self.ecc_turns())
+
+    def a_sd(self):
+        return np.sqrt(np.sum((self.a_turns() - self.a_mean()) ** 2))
+
+    def ecc_sd(self):
+        return np.sqrt(np.sum((self.ecc_turns() - self.ecc_mean()) ** 2))
+
+
+inputfile=open('./input/data.dat')
 dt = float(inputfile.readline())
-n = int(inputfile.readline())
+inputfile.readline()
 inputfile.readline()
 inputfile.readline()
 inputfile.readline()
 inputfile.readline()
 M = float(inputfile.readline())
-G = 1.47662e-1
-pi = np.arctan(1.0)*4.0
-timeweb = np.arange(n+1)*dt
-rN = np.sqrt(xN**2+yN**2)
-vabsN = np.sqrt(vxN**2+vyN**2)
-aN = rN[0]*G*M/(2*G*M-vabsN[0]**2*rN[0])    #Semi-major axis
-omegaN = math.atan2(yN[np.argmin(rN)], xN[np.argmin(rN)])  #Pericenter argument
-eccN = np.max(np.roots(np.array([1, (xN[0]*np.cos(omegaN)+yN[0]*np.sin(omegaN))/aN, rN[0]/aN-1])))  #eccentricity
 
-rP = np.sqrt(xP**2+yP**2)
-periarg = np.insert(argrelextrema(rP, np.less), 0, 0)
-numberofturns = np.size(periarg)-1
-domega = (np.arctan2(yP[periarg], xP[periarg])-omegaN)
-for i in np.arange(1,numberofturns+1):
-    if (domega[i]-domega[i-1]<0):
-        domega[i:]=domega[i:]+2*pi
-phiP = np.arctan2(yP, xP)
-for i in np.arange(1,n+1):
-    if (phiP[i]-phiP[i-1]<0):
-        phiP[i:]=phiP[i:]+2*pi
-phiProtated = np.empty(n+1)
-for i in np.arange(numberofturns):
-    phiProtated[periarg[i]:periarg[i+1]] = (phiP-(domega[i+1]/timeweb[periarg[i+1]])*timeweb-omegaN)[periarg[i]:periarg[i+1]]
-phiProtated[periarg[numberofturns]:] = (phiP-(domega[numberofturns]/timeweb[periarg[numberofturns]])*timeweb-omegaN)[periarg[numberofturns]:]
-aP = np.empty(numberofturns)
-eccP = np.empty(numberofturns)
+TrajN = Integraline(dt, M)
+TrajP = Integraline(dt, M)
+TrajN.readtxt('./output/resultN.dat')
+TrajP.readtxt('./output/resultP.dat')
 
-for i in np.arange(numberofturns):
-    ellipsemodel = odr.Model(ellipsepolar)
-    data_to_fit = odr.Data(phiProtated[periarg[i]:periarg[i+1]], rP[periarg[i]:periarg[i+1]])
-    job = odr.ODR(data_to_fit, ellipsemodel, beta0=np.array([aN, eccN+0.2]))
-    results = job.run()
-    aP[i], eccP[i] = results.beta
-    
-
-precession = (domega[1:]/timeweb[periarg[1:]])/timescale
-meanprecession = np.mean(precession)
-
-asd = np.sqrt(np.sum((aP-np.mean(aP))**2))
-eccsd = np.sqrt(np.sum((eccP-np.mean(eccP))**2))
-
-#rNewtAnalyt = a*(1-ecc**2)/(1+ecc*(xN*np.cos(omega)+yN*np.sin(omega))/rN)
-#xNewtAnalyt = xN/rN*rNewtAnalyt
-#yNewtAnalyt = yN/rN*rNewtAnalyt
-
-timescale = 3.335640952e-5
-lengthscale = 10.0
-
-EnormedN = EN/EN[0]-1
-LnormedN = LN/LN[0]-1
-EnormedP = EP/EP[0]-1
-LnormedP = LP/LP[0]-1
-
-outputdir = './output/'+datetime.datetime.now().strftime("%Y.%m.%d-%H:%M:%S")+'/'
+outputdir = './output/' + datetime.datetime.now().strftime("%Y.%m.%d-%H:%M:%S") + '/'
 os.mkdir(outputdir)
-os.system('cp ./input/data.dat '+outputdir+'data.dat')
+os.system('cp ./input/data.dat ' + outputdir + 'data.dat')
 
-fig, ax = plt.subplots()
-ax.scatter(0, 0, color='k')
-ax.plot(xN*lengthscale, yN*lengthscale, color='k')
-ax.axis('equal')
-ax.grid()
-ax.set(xlabel='Координата $x$, км', ylabel='Координата $y$, км', title='Орбита системы (Н. случай)')
-ax.margins(0.05)
-fig.savefig(outputdir+'OrbitN.png')
-
-fig, ax = plt.subplots()
-ax.plot(timeweb*timescale, xN*lengthscale, color='k')
-ax.grid()
-ax.margins(0.05)
-ax.set(xlabel='Время, сек', ylabel='Координата $x$, км', title='зависимость $x(t)$ (Н. случай)')
-fig.savefig(outputdir+'x-tN.png')
-
-fig, ax = plt.subplots()
-ax.plot(timeweb*timescale, yN*lengthscale, color='k')
-ax.grid()
-ax.margins(0.05)
-ax.set(xlabel='Время, сек', ylabel='Координата $y$, км', title='зависимость $y(t)$ (Н. случай)')
-fig.savefig(outputdir+'y-tN.png')
-
-fig, ax = plt.subplots()
-ax.plot(timeweb*timescale, vxN, color='k')
-ax.grid()
-ax.margins(0.05)
-ax.set(xlabel='Время, сек', ylabel='Скорость $v_x$, $c$', title='зависимость $v_x(t)$ (Н. случай)')
-fig.savefig(outputdir+'vx-tN.png')
-
-fig, ax = plt.subplots()
-ax.plot(timeweb*timescale, vyN, color='k')
-ax.grid()
-ax.margins(0.05)
-ax.set(xlabel='Время, сек', ylabel='Скорость $v_y$, $c$', title='зависимость $v_y(t)$ (Н. случай)')
-fig.savefig(outputdir+'vy-tN.png')
-
-fig = plt.figure(6)
-ax1 = plt.subplot(211)
-ax1.plot(timeweb*timescale, EnormedN, color='k')
-ax1.grid()
-ax1.margins(0.05)
-ax1.set(xlabel='Время, сек', ylabel=r'$\frac{E}{E_0}-1$', title='Ошибки энергии (Н. случай)')
-#fig.savefig(outputdir+'EnergyError.png')
-#fig, ax = plt.subplots()
-ax2 = plt.subplot(212)
-ax2.plot(timeweb*timescale, LnormedN, color='k')
-ax2.grid()
-ax2.margins(0.05)
-ax2.set(xlabel='Время, сек', ylabel=r'$\frac{L}{L_0}-1$', title='Ошибки углового момента (Н. случай)')
-plt.tight_layout()
-fig.savefig(outputdir+'ErrorsN.png')
+tstr = 'Время, '
+cstr = 'Координата '
+vstr = 'Скорость '
+xstr = '$x$, '
+ystr = '$y$, '
+vxstr = '$v_x$, '
+vystr = 'v, '
+lunit = 'км'
+tunit = 'сек'
+vunit = 'c'
+Enstr = r'$\frac{E}{E_0}-1$'
+Lnstr = r'$\frac{L}{L_0}-1$'
+Orbitstr = 'Траектория системы '
+Depstr = 'Зависимость '
+xtstr = '$x(t)$ '
+ytstr = '$y(t)$ '
+vxtstr = '$v_x(t)$ '
+vytstr = '$v_y(t)$ '
+Eerr = 'Ошибки энергий '
+Lerr = 'Ошибки угловых моментов '
 
 
-fig, ax = plt.subplots()
-ax.scatter(0, 0, color='k')
-ax.plot(xP*lengthscale, yP*lengthscale, color='k')
-ax.axis('equal')
-ax.grid()
-ax.set(xlabel='Координата $x$, км', ylabel='Координата $y$, км', title='Орбита системы (П-н. случай)')
-ax.margins(0.05)
-fig.savefig(outputdir+'OrbitP.png')
+def outputIntegraline(Traj: Integraline, timescale, lengthscale, casename, casenameabbr, outputdir):
+    casenamepdf = casenameabbr + '.pdf'
 
-fig, ax = plt.subplots()
-ax.plot(timeweb*timescale, xP*lengthscale, color='k')
-ax.grid()
-ax.margins(0.05)
-ax.set(xlabel='Время, сек', ylabel='Координата $x$, км', title='зависимость $x(t)$ (П-н. случай)')
-fig.savefig(outputdir+'x-tP.png')
+    fig, ax = plt.subplots()
+    ax.scatter(0, 0, color='k')
+    ax.plot(Traj.x * lengthscale, Traj.y * lengthscale, color='k')
+    ax.axis('equal')
+    ax.grid()
+    ax.set(xlabel=cstr + xstr + lunit, ylabel=cstr + ystr + lunit, title=Orbitstr + casename)
+    ax.margins(0.05)
+    fig.savefig(outputdir + 'Orbit' + casenamepdf)
 
-fig, ax = plt.subplots()
-ax.plot(timeweb*timescale, yP*lengthscale, color='k')
-ax.grid()
-ax.margins(0.05)
-ax.set(xlabel='Время, сек', ylabel='Координата $y$, км', title='зависимость $y(t)$ (П-н. случай)')
-fig.savefig(outputdir+'y-tP.png')
+    fig, ax = plt.subplots()
+    ax.plot(Traj.timeweb * timescale, Traj.x * lengthscale, color='k')
+    ax.grid()
+    ax.margins(0.05)
+    ax.set(xlabel=tstr + tunit, ylabel=cstr + xstr + lunit, title=Depstr + xtstr + casename)
+    fig.savefig(outputdir + 'x-t' + casenamepdf)
 
-fig, ax = plt.subplots()
-ax.plot(timeweb*timescale, vxP, color='k')
-ax.grid()
-ax.margins(0.05)
-ax.set(xlabel='Время, сек', ylabel='Скорость $v_x$, $c$', title='зависимость $v_x(t)$ (П-н. случай)')
-fig.savefig(outputdir+'vx-tP.png')
+    fig, ax = plt.subplots()
+    ax.plot(Traj.timeweb * timescale, Traj.y * lengthscale, color='k')
+    ax.grid()
+    ax.margins(0.05)
+    ax.set(xlabel=tstr + tunit, ylabel=cstr + ystr + lunit, title=Depstr + ytstr + casename)
+    fig.savefig(outputdir + 'y-t' + casenamepdf)
 
-fig, ax = plt.subplots()
-ax.plot(timeweb*timescale, vyP, color='k')
-ax.grid()
-ax.margins(0.05)
-ax.set(xlabel='Время, сек', ylabel='Скорость $v_y$, $c$', title='зависимость $v_y(t)$ (П-н. случай)')
-fig.savefig(outputdir+'vy-tP.png')
+    fig, ax = plt.subplots()
+    ax.plot(Traj.timeweb * timescale, Traj.vx, color='k')
+    ax.grid()
+    ax.margins(0.05)
+    ax.set(xlabel=tstr + tunit, ylabel=vstr + vxstr + vunit, title=Depstr + vxtstr + casename)
+    fig.savefig(outputdir + 'vx-t' + casenamepdf)
 
-fig = plt.figure(12)
-ax1 = plt.subplot(211)
-ax1.plot(timeweb*timescale, EnormedP, color='k')
-ax1.grid()
-ax1.margins(0.05)
-ax1.set(xlabel='Время, сек', ylabel=r'$\frac{E}{E_0}-1$', title='Ошибки энергии (П-н. случай)')
-#fig.savefig(outputdir+'EnergyError.png')
-#fig, ax = plt.subplots()
-ax2 = plt.subplot(212)
-ax2.plot(timeweb*timescale, LnormedP, color='k')
-ax2.grid()
-ax2.margins(0.05)
-ax2.set(xlabel='Время, сек', ylabel=r'$\frac{L}{L_0}-1$', title='Ошибки углового момента (П-н. случай)')
-plt.tight_layout()
-fig.savefig(outputdir+'ErrorsP.png')
+    fig, ax = plt.subplots()
+    ax.plot(Traj.timeweb * timescale, Traj.vy, color='k')
+    ax.grid()
+    ax.margins(0.05)
+    ax.set(xlabel=tstr + tunit, ylabel=vstr + vystr + vunit, title=Depstr + vytstr + casename)
+    fig.savefig(outputdir + 'vy-t' + casenamepdf)
 
-
-fig, ax = plt.subplots()
-ax.scatter(0, 0, color='k')
-ax.plot(xN*lengthscale, yN*lengthscale, color='k')
-ax.plot(xP*lengthscale, yP*lengthscale, color='r')
-ax.axis('equal')
-ax.grid()
-ax.set(xlabel='Координата $x$, км', ylabel='Координата $y$, км', title='Орбиты системы')
-ax.margins(0.05)
-fig.savefig(outputdir+'OrbitNP.png')
-
-fig, ax = plt.subplots()
-ax.plot(timeweb*timescale, xN*lengthscale, color='k')
-ax.plot(timeweb*timescale, xP*lengthscale, color='r')
-ax.grid()
-ax.margins(0.05)
-ax.set(xlabel='Время, сек', ylabel='Координата $x$, км', title='зависимости $x(t)$')
-fig.savefig(outputdir+'x-tNP.png')
-
-fig, ax = plt.subplots()
-ax.plot(timeweb*timescale, yN*lengthscale, color='k')
-ax.plot(timeweb*timescale, yP*lengthscale, color='r')
-ax.grid()
-ax.margins(0.05)
-ax.set(xlabel='Время, сек', ylabel='Координата $y$, км', title='зависимости $y(t)$')
-fig.savefig(outputdir+'y-tNP.png')
-
-fig, ax = plt.subplots()
-ax.plot(timeweb*timescale, vxN, color='k')
-ax.plot(timeweb*timescale, vxP, color='r')
-ax.grid()
-ax.margins(0.05)
-ax.set(xlabel='Время, сек', ylabel='Скорость $v_x$, $c$', title='зависимости $v_x(t)$')
-fig.savefig(outputdir+'vx-tNP.png')
-
-fig, ax = plt.subplots()
-ax.plot(timeweb*timescale, vyN, color='k')
-ax.plot(timeweb*timescale, vyP, color='r')
-ax.grid()
-ax.margins(0.05)
-ax.set(xlabel='Время, сек', ylabel='Скорость $v_y$, $c$', title='зависимости $v_y(t)$')
-fig.savefig(outputdir+'vy-tNP.png')
-
-fig = plt.figure(18)
-ax1 = plt.subplot(211)
-ax1.plot(timeweb*timescale, EnormedN, color='k')
-ax1.plot(timeweb*timescale, EnormedP, color='r')
-ax1.grid()
-ax1.margins(0.05)
-ax1.set(xlabel='Время, сек', ylabel=r'$\frac{E}{E_0}-1$', title='Ошибки энергий')
-#fig.savefig(outputdir+'EnergyError.png')
-#fig, ax = plt.subplots()
-ax2 = plt.subplot(212)
-ax2.plot(timeweb*timescale, LnormedN, color='k')
-ax2.plot(timeweb*timescale, LnormedP, color='r')
-ax2.grid()
-ax2.margins(0.05)
-ax2.set(xlabel='Время, сек', ylabel=r'$\frac{L}{L_0}-1$', title='Ошибки угловых моментов')
-plt.tight_layout()
-fig.savefig(outputdir+'ErrorsNP.png')
+    fig = plt.figure()
+    ax1 = plt.subplot(211)
+    ax1.plot(Traj.timeweb * timescale, Traj.Enormed, color='k')
+    ax1.grid()
+    ax1.margins(0.05)
+    ax1.set(xlabel=tstr + tunit, ylabel=Enstr, title=Eerr + casename)
+    ax2 = plt.subplot(212)
+    ax2.plot(Traj.timeweb * timescale, Traj.Lnormed, color='k')
+    ax2.grid()
+    ax2.margins(0.05)
+    ax2.set(xlabel=tstr + tunit, ylabel=Lnstr, title=Lerr + casename)
+    plt.tight_layout()
+    fig.savefig(outputdir + 'Errors' + casenamepdf)
 
 
-fig, ax = plt.subplots()
-ax.scatter(periarg*dt*timescale, domega, color="k")
-ax.plot(periarg*dt*timescale, domega, color="k")
-ax.grid()
-ax.margins(0.05)
-ax.set(xlabel='Время, сек', ylabel='Аргумент перицентра, радианы', title='Изменение аргумента перицентра')
-fig.savefig(outputdir+'domega.png')
+def outputIntegralines(Trajs: list, timescale, lengthscale, casename, casenameabbr, outputdir):
+    """
 
-fig = plt.figure(20)
-ax1 = plt.subplot(211)
-ax1.scatter((np.arange(numberofturns)+1).astype(int), aP*lengthscale, color="k")
-ax1.plot((np.arange(numberofturns)+1).astype(int), aP*lengthscale, color="k")
-ax1.grid()
-ax1.margins(0.05)
-ax1.set(xlabel='Обороты по орбите', ylabel='Большая полуось, км', title='Изменение большой полуоси')
-ax1.xaxis.set_major_locator(MaxNLocator(integer=True))
-ax2 = plt.subplot(212)
-ax2.scatter((np.arange(numberofturns)+1).astype(int), eccP, color="k")
-ax2.plot((np.arange(numberofturns)+1).astype(int), eccP, color="k")
-ax2.grid()
-ax2.margins(0.05)
-ax2.set(xlabel='Обороты по орбите', ylabel='Эксцентриситет', title='Изменение эксцентриситета')
-ax2.xaxis.set_major_locator(MaxNLocator(integer=True))
-plt.tight_layout()
-fig.savefig(outputdir+'Keplerparchange.png')
+    :type Trajs: list[Integraline]
+    """
+    casenamepdf = casenameabbr + '.pdf'
+    col = ['k', 'r', 'b', 'g', 'o']
+    col = col[:len(Trajs)]
+    fig, ax = plt.subplots()
+    ax.scatter(0, 0, color='k')
+    for i in np.arange(len(Trajs)):
+        ax.plot(Trajs[i].x * lengthscale, Trajs[i].y * lengthscale, color=col[i])
+    ax.axis('equal')
+    ax.grid()
+    ax.set(xlabel=cstr + xstr + lunit, ylabel=cstr + ystr + lunit, title=Orbitstr + casename)
+    ax.margins(0.05)
+    fig.savefig(outputdir + 'Orbit' + casenamepdf)
+
+    fig, ax = plt.subplots()
+    for i in np.arange(len(Trajs)):
+        ax.plot(Trajs[i].timeweb * timescale, Trajs[i].x * lengthscale, color=col[i])
+    ax.grid()
+    ax.margins(0.05)
+    ax.set(xlabel=tstr + tunit, ylabel=cstr + xstr + lunit, title=Depstr + xtstr + casename)
+    fig.savefig(outputdir + 'x-t' + casenamepdf)
+
+    fig, ax = plt.subplots()
+    for i in np.arange(len(Trajs)):
+        ax.plot(Trajs[i].timeweb * timescale, Trajs[i].y * lengthscale, color=col[i])
+    ax.grid()
+    ax.margins(0.05)
+    ax.set(xlabel=tstr + tunit, ylabel=cstr + ystr + lunit, title=Depstr + ytstr + casename)
+    fig.savefig(outputdir + 'y-t' + casenamepdf)
+
+    fig, ax = plt.subplots()
+    for i in np.arange(len(Trajs)):
+        ax.plot(Trajs[i].timeweb * timescale, Trajs[i].vx, color=col[i])
+    ax.grid()
+    ax.margins(0.05)
+    ax.set(xlabel=tstr + tunit, ylabel=vstr + vxstr + vunit, title=Depstr + vxtstr + casename)
+    fig.savefig(outputdir + 'vx-t' + casenamepdf)
+
+    fig, ax = plt.subplots()
+    for i in np.arange(len(Trajs)):
+        ax.plot(Trajs[i].timeweb * timescale, Trajs[i].vy, color=col[i])
+    ax.grid()
+    ax.margins(0.05)
+    ax.set(xlabel=tstr + tunit, ylabel=vstr + vystr + vunit, title=Depstr + vytstr + casename)
+    fig.savefig(outputdir + 'vy-t' + casenamepdf)
+
+    fig = plt.figure()
+    ax1 = plt.subplot(211)
+    for i in np.arange(len(Trajs)):
+        ax1.plot(Trajs[i].timeweb * timescale, Trajs[i].Enormed, color=col[i])
+    ax1.grid()
+    ax1.margins(0.05)
+    ax1.set(xlabel=tstr + tunit, ylabel=Enstr, title=Eerr + casename)
+    ax2 = plt.subplot(212)
+    for i in np.arange(len(Trajs)):
+        ax2.plot(Trajs[i].timeweb * timescale, Trajs[i].Lnormed, color=col[i])
+    ax2.grid()
+    ax2.margins(0.05)
+    ax2.set(xlabel=tstr + tunit, ylabel=Lnstr, title=Lerr + casename)
+    plt.tight_layout()
+    fig.savefig(outputdir + 'Errors' + casenamepdf)
+
+
+def outputPars(Traj: Integraline, lengthscale, casename, casenameabbr, outputdir):
+    casenamepdf = casenameabbr + '.pdf'
+    fig, ax = plt.subplots()
+    ax.scatter(Traj.periloc0() * Traj.dt * timescale, Traj.omega()-pi/2, color="k")
+    ax.plot(Traj.periloc0() * Traj.dt * timescale, Traj.omega()-pi/2, color="k")
+    ax.grid()
+    ax.margins(0.05)
+    ax.set(xlabel=tstr + tunit, ylabel='Аргумент перицентра, радианы', title='Изменение аргумента перицентра')
+    fig.savefig(outputdir + 'domega' + casenamepdf)
+
+    fig = plt.figure()
+    ax1 = plt.subplot(211)
+    ax1.scatter((np.arange(Traj.number_of_full_turns()) + 1).astype(int), Traj.a_turns() * lengthscale, color="k")
+    ax1.plot((np.arange(Traj.number_of_full_turns()) + 1).astype(int), Traj.a_turns() * lengthscale, color="k")
+    ax1.grid()
+    ax1.margins(0.05)
+    ax1.set(xlabel='Обороты по орбите', ylabel='Большая полуось, км', title='Изменение большой полуоси')
+    ax1.xaxis.set_major_locator(MaxNLocator(integer=True))
+    ax2 = plt.subplot(212)
+    ax2.scatter((np.arange(Traj.number_of_full_turns()) + 1).astype(int), Traj.ecc_turns(), color="k")
+    ax2.plot((np.arange(Traj.number_of_full_turns()) + 1).astype(int), Traj.ecc_turns(), color="k")
+    ax2.grid()
+    ax2.margins(0.05)
+    ax2.set(xlabel='Обороты по орбите', ylabel='Эксцентриситет', title='Изменение эксцентриситета')
+    ax2.xaxis.set_major_locator(MaxNLocator(integer=True))
+    plt.tight_layout()
+    fig.savefig(outputdir + 'Keplerpar' + casenamepdf)
+
+
+outputIntegraline(TrajN, timescale, lengthscale, '(Н. случай)', 'N', outputdir)
+outputIntegraline(TrajP, timescale, lengthscale, '(П-Н. случай)', 'P', outputdir)
+outputIntegralines([TrajN, TrajP], timescale, lengthscale, '(Н. и П-Н. случаи)', 'NP', outputdir)
+outputPars(TrajP, lengthscale, '(П-Н. случай)', 'P', outputdir)

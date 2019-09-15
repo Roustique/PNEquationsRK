@@ -2,12 +2,13 @@
 # -*- coding: utf-8 -*-
 from matplotlib import pyplot as plt
 from matplotlib.ticker import MaxNLocator
-import matplotlib.style
 import matplotlib.font_manager as mfm
+import matplotlib.style
 import numpy as np
 from scipy import odr
 from scipy.signal import argrelextrema
 import datetime
+import subprocess
 import os
 import PNOrbits
 
@@ -35,7 +36,5 @@ TrajP.readtxt('./output/resultP.dat')
 
 outputdir = PNOrbits.createoutputdir()
 
-PNOrbits.outputIntegraline(TrajN, timescale, lengthscale, '(Н. случай)', 'N', outputdir)
-PNOrbits.outputIntegraline(TrajP, timescale, lengthscale, '(П-Н. случай)', 'P', outputdir)
-PNOrbits.outputIntegralines([TrajN, TrajP], timescale, lengthscale, '(Н. и П-Н. случаи)', 'NP', outputdir)
-PNOrbits.outputPars(TrajP, lengthscale, '(П-Н. случай)', 'P', outputdir)
+PNOrbits.outputframes3([TrajN, TrajP], timescale, lengthscale, 15, 0.3, 10, outputdir)
+#subprocess.call(['bash', '-c', 'convert -delay 4.1667 -loop 0 '+outputdir+'anim/{0..'+str(6*24-1)+'}.png '+outputdir+'Output.gif'])

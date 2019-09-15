@@ -57,18 +57,22 @@ implicit none
 
 	real(mp), dimension(2,2) :: A
 	real(mp), dimension(2) :: B, v, vold
-	real(mp) :: phi, e, Det, Det1, Det2
+	real(mp) :: phi, e, Det, Det1, Det2, M, majsemiax
 	real(mp), parameter :: c = 1.0
 	real(mp), parameter :: eps = 1e-15
 
 	open(1, file = './input/initvel.dat')
-	read(1,*) phi, e
+	read(1,*) majsemiax, e, M
 	close(1)
 
-	phi = 4.28e+6 * 1.47662e-1 / (phi * (1 - e**2))
+	phi = M * 1.47662e-1 / (majsemiax * (1 - e**2))
 
 	v(1) = sqrt(phi) * (1 + e)
 	v(2) = sqrt(phi) * (1 - e)
+
+	write(*,*)"Newtonian velocities:"
+	write(*,*) v
+	write(*,*)"Iterations finding PN velocities:"
 
 	do while (norm2(v - vold) > eps)
 
@@ -77,12 +81,26 @@ implicit none
 
 		vold = v
 
-		Det  = A(1,1) * A(2,2) - A(2,1) * A(1,2)
-		Det1 =   B(1) * A(2,2) -   B(2) * A(1,2)
-		Det2 = A(1,1) *   B(2) - A(2,1) *   B(1)
+		!Det  = A(1,1) * A(2,2) - A(2,1) * A(1,2)
+		!Det1 =   B(1) * A(2,2) -   B(2) * A(1,2)
+		!Det2 = A(1,1) *   B(2) - A(2,1) *   B(1)
 
-		v(1) = Det1 / Det
-		v(2) = Det2 / Det
+		!v(1) = Det1 / Det
+		!v(2) = Det2 / Det
+
+		A(1,2) = A(1,2) / A(1,1)
+		B(1) = B(1) / A(1,1)
+		A(1,1) = 1
+
+		A(2,1) = 0
+		A(2,2) = A(2,2) - A(1,2) * A(2,1)
+		B(2) = B(2) - B(1) * A(2,1)
+
+		B(2) = B(2) / A(2,2)
+		A(2,2) = 1
+
+		v(2) = B(2)
+		v(1) = B(1) + A(1,2) * B(2)
 
 		write(*,*) v
 

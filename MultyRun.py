@@ -35,6 +35,10 @@ for line in inputfile:
     outputfile.write(l[6])
     outputfile.close()
     
+    print('Running main.out -N ...')
     subprocess.call(["./main.out", "-N"])
+    print('done!'+'\n'+'Running main.out -P ...')
     subprocess.call(["./main.out", "-P"])
+    print('done!'+'\n'+'Running PlotDrawer.py ...')
     subprocess.call(["python3", "PlotDrawer.py"])
+    print('done!')

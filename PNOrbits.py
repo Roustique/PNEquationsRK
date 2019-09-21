@@ -1,21 +1,42 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
+import matplotlib as mpl
+mpl.use("pgf")
+#mpl.pyplot.rc('font', **{'family': 'serif', 'serif': ['Computer Modern Roman'], 'size': 16})
+#mpl.pyplot.rc('font', family='Noto Serif')
+pgf_with_custom_preamble = {
+    "font.family": "sans-serif",
+    "font.serif": [],
+    "font.sans-serif": [],
+    "text.usetex": True,
+    "pgf.rcfonts": True,
+    "pgf.preamble": [
+#         "\\usepackage{units}",
+#         "\\usepackage{metalogo}",
+         "\\usepackage{unicode-math}",
+         r"\setmathfont{Latin Modern Math}[Scale=1.15]",
+#        r"\setmainfont{lmodern}", # serif font via preamble
+         ]
+}
+mpl.rcParams.update(pgf_with_custom_preamble)
 from matplotlib import pyplot as plt
 from matplotlib.ticker import MaxNLocator
-import matplotlib.style
 import numpy as np
 from scipy import odr
 from scipy.signal import argrelextrema
 import datetime
 import os
 
-matplotlib.style.use('classic')
-plt.rc('font', family='Geometria')
+mpl.style.use('classic')
+plt.rc('font', family='CMU Bright')
+#plt.rc('text.latex',preamble=r'\usepackage[T2A]{fontenc}')
+#plt.rc('text.latex',preamble=r'\usepackage[utf8]{inputenc}')
+#plt.rc('text.latex',preamble=r'\usepackage[russian, english]{babel}')
 
 pi = np.arctan(1.0) * 4.0
-G = 1.47662e-1
-timescale = 3.335640952e-5
-lengthscale = 10.0
+G = 1.0
+timescale = 21.08
+lengthscale = 6.32e+6
 
 
 def ellipsepolar(b, phi):
@@ -162,26 +183,26 @@ def createoutputdir():
     os.system('cp ./input/data.dat ' + outputdir + 'data.dat')
     return outputdir
 
-tstr = 'Время, '
-cstr = 'Координата '
-vstr = 'Скорость '
+tstr = 'Time, '
+cstr = 'Coordinate '
+vstr = 'Velocity '
 xstr = '$x$, '
 ystr = '$y$, '
 vxstr = '$v_x$, '
 vystr = '$v_y$, '
-lunit = 'км'
-tunit = 'сек'
+lunit = 'km'
+tunit = 'sec'
 vunit = 'c'
 Enstr = r'$\frac{E}{E_0}-1$'
 Lnstr = r'$\frac{L}{L_0}-1$'
-Orbitstr = 'Траектория системы '
-Depstr = 'Зависимость '
+Orbitstr = 'Trajectory of system '
+Depstr = 'Function '
 xtstr = '$x(t)$ '
 ytstr = '$y(t)$ '
 vxtstr = '$v_x(t)$ '
 vytstr = '$v_y(t)$ '
-Eerr = 'Ошибки энергий '
-Lerr = 'Ошибки угловых моментов '
+Eerr = 'Energy error '
+Lerr = 'Angular moment error '
 
 
 def outputIntegraline(Traj: Integraline, timescale, lengthscale, casename, casenameabbr, outputdir):
@@ -327,7 +348,7 @@ def outputPars(Traj: Integraline, lengthscale, casename, casenameabbr, outputdir
     ax.plot(Traj.periloc0() * Traj.dt * timescale, Traj.omega()-pi/2, color="k")
     ax.grid()
     ax.margins(0.05)
-    ax.set(xlabel=tstr + tunit, ylabel='Аргумент перицентра, радианы', title='Изменение аргумента перицентра')
+    ax.set(xlabel=tstr + tunit, ylabel='Pericenter argument, radians', title='Pericenter shift')
     fig.savefig(outputdir + 'domega' + casenamepdf)
 
     print(casenameabbr+' - Drawing major semi-axis and eccentricity plot...')
@@ -337,14 +358,14 @@ def outputPars(Traj: Integraline, lengthscale, casename, casenameabbr, outputdir
     ax1.plot((np.arange(Traj.number_of_full_turns()) + 1).astype(int), Traj.a_turns() * lengthscale, color="k")
     ax1.grid()
     ax1.margins(0.05)
-    ax1.set(xlabel='Обороты по орбите', ylabel='Большая полуось, км', title='Изменение большой полуоси')
+    ax1.set(xlabel='Orbit turns', ylabel='Major semi-axis, km', title='Major semi-axis error')
     ax1.xaxis.set_major_locator(MaxNLocator(integer=True))
     ax2 = plt.subplot(212)
     ax2.scatter((np.arange(Traj.number_of_full_turns()) + 1).astype(int), Traj.ecc_turns(), color="k")
     ax2.plot((np.arange(Traj.number_of_full_turns()) + 1).astype(int), Traj.ecc_turns(), color="k")
     ax2.grid()
     ax2.margins(0.05)
-    ax2.set(xlabel='Обороты по орбите', ylabel='Эксцентриситет', title='Изменение эксцентриситета')
+    ax2.set(xlabel='Orbit turns', ylabel='Eccentricity', title='Eccentricity error')
     ax2.xaxis.set_major_locator(MaxNLocator(integer=True))
     plt.tight_layout()
     fig.savefig(outputdir + 'Keplerpar' + casenamepdf)
@@ -413,23 +434,23 @@ def outputframes1(Trajs: list, timescale, lengthscale, durationsec, tracelength,
             ax.plot(Trajs[j].x * lengthscale, Trajs[j].y * lengthscale, color=col[j])
             for k in np.arange(segnumb):
                 br = cp - ppf*(k+1)*tracelength  #bottom range
-                br = br * (br > 0)
+                br = int(br * (br > 0))
                 ur = cp - ppf*k*tracelength      #upper range
-                ur = ur * (ur > 0)
+                ur = int(ur * (ur > 0))
                 ax.plot((Trajs[j].x)[br:ur] * lengthscale, (Trajs[j].y)[br:ur] * lengthscale, linewidth = (linethickness(segnumb, k)-1)*4.5, color = colmesh((0, 0, 0), col[j], segnumb, k))
             ax.scatter(Trajs[j].x[cp] * lengthscale, Trajs[j].y[cp] * lengthscale, s=60, color = col[j], linewidths=0, zorder=96)
             for k in np.arange(segnumb):
                 br = cp - ppf*(k+1)*tracelength  #bottom range
-                br = br * (br > 0)
+                br = int(br * (br > 0))
                 ur = cp - ppf*k*tracelength      #upper range
-                ur = ur * (ur > 0)
+                ur = int(ur * (ur > 0))
                 ax.plot((Trajs[j].x)[br:ur] * lengthscale, (Trajs[j].y)[br:ur] * lengthscale, linewidth = (linethickness(segnumb, k)-1)*3, color = colmesh(col[j], colbright[j], segnumb, k))
             ax.scatter(Trajs[j].x[cp] * lengthscale, Trajs[j].y[cp] * lengthscale, s = 30, color = colbright[j], linewidths=0, zorder=97)
             for k in np.arange(segnumb):
                 br = cp - ppf*(k+1)*tracelength  #bottom range
-                br = br * (br > 0)
+                br = int(br * (br > 0))
                 ur = cp - ppf*k*tracelength      #upper range
-                ur = ur * (ur > 0)
+                ur = int(ur * (ur > 0))
                 ax.plot((Trajs[j].x)[br:ur] * lengthscale, (Trajs[j].y)[br:ur] * lengthscale, linewidth = linethickness(segnumb, k), color = colmesh(col[j], (1.0, 1.0, 1.0), segnumb, k))
             ax.scatter(Trajs[j].x[cp] * lengthscale, Trajs[j].y[cp] * lengthscale, s = 18, color = (1.0, 1.0, 1.0), linewidths=0, zorder=98)
         fig.savefig(outputdir+'anim/'+str(i)+'.png', facecolor='k')
@@ -488,23 +509,23 @@ def outputframes2(Trajs: list, timescale, lengthscale, durationsec, tracelength,
             #ax.plot(Trajs[j].x * lengthscale, Trajs[j].y * lengthscale, color=col[j])
             for k in np.arange(segnumb):
                 br = cp - ppf*(k+1)*tracelength  #bottom range
-                br = br * (br > 0)
+                br = int(br * (br > 0))
                 ur = cp - ppf*k*tracelength      #upper range
-                ur = ur * (ur > 0)
+                ur = int(ur * (ur > 0))
                 ax.plot((Trajs[j].x)[br:ur] * lengthscale, (Trajs[j].y)[br:ur] * lengthscale, linewidth = (linethickness(segnumb, k)-1)*4.5, color = colmesh((0, 0, 0), col[j], segnumb, k))
             ax.scatter(Trajs[j].x[cp] * lengthscale, Trajs[j].y[cp] * lengthscale, s=60, color = col[j], linewidths=0, zorder=54)
             for k in np.arange(segnumb):
                 br = cp - ppf*(k+1)*tracelength  #bottom range
-                br = br * (br > 0)
+                br = int(br * (br > 0))
                 ur = cp - ppf*k*tracelength      #upper range
-                ur = ur * (ur > 0)
+                ur = int(ur * (ur > 0))
                 ax.plot((Trajs[j].x)[br:ur] * lengthscale, (Trajs[j].y)[br:ur] * lengthscale, linewidth = (linethickness(segnumb, k)-1)*3, color = colmesh(col[j], colbright[j], segnumb, k))
             ax.scatter(Trajs[j].x[cp] * lengthscale, Trajs[j].y[cp] * lengthscale, s = 30, color = colbright[j], linewidths=0, zorder=56)
             for k in np.arange(segnumb):
                 br = cp - ppf*(k+1)*tracelength  #bottom range
-                br = br * (br > 0)
+                br = int(br * (br > 0))
                 ur = cp - ppf*k*tracelength      #upper range
-                ur = ur * (ur > 0)
+                ur = int(ur * (ur > 0))
                 ax.plot((Trajs[j].x)[br:ur] * lengthscale, (Trajs[j].y)[br:ur] * lengthscale, linewidth = linethickness(segnumb, k), color = colmesh(col[j], (1.0, 1.0, 1.0), segnumb, k))
             ax.scatter(Trajs[j].x[cp] * lengthscale, Trajs[j].y[cp] * lengthscale, s = 18, color = (1.0, 1.0, 1.0), linewidths=0, zorder=58)
         fig.savefig(outputdir+'anim/'+str(i)+'.png', facecolor='k')
@@ -512,8 +533,8 @@ def outputframes2(Trajs: list, timescale, lengthscale, durationsec, tracelength,
         
 def outputframes3(Trajs: list, timescale, lengthscale, durationsec, tracelength, segnumb, outputdir):
     numberofframes = int(durationsec*24)
-    col = [(0.25, 0.25, 0.25), (0.0, 0.25, 0.5), (0, 0.25, 0.5), (0, 0.5, 0.25)]
-    colbright = [(1.0, 1.0, 1.0), (0.0, 0.5, 1.0), (0, 0.5, 1.0), (0, 1.0, 0.5)]
+    col = [(0.25, 0.25, 0.25), (0.0, 0.25, 0.5), (0.5, 0.25, 0), (0.25, 0, 0.5)]
+    colbright = [(1.0, 1.0, 1.0), (0.0, 0.5, 1.0), (1.0, 0.5, 0), (0.5, 0, 1.0)]
     whitecol=np.array([1.0, 1.0, 1.0])
     maxy=0
     maxx=0
@@ -551,23 +572,23 @@ def outputframes3(Trajs: list, timescale, lengthscale, durationsec, tracelength,
             cp = ppf*i   #current point
             for k in np.arange(segnumb):
                 br = cp - ppf*(k+1)*tracelength  #bottom range
-                br = br * (br > 0)
+                br = int(br * (br > 0))
                 ur = cp - ppf*k*tracelength      #upper range
-                ur = ur * (ur > 0)
+                ur = int(ur * (ur > 0))
                 ax.plot((Trajs[j].x)[br:ur] * lengthscale, (Trajs[j].y)[br:ur] * lengthscale, linewidth = (linethickness(segnumb, k)-1)*4, color = colmesh((0, 0, 0), col[j], segnumb, k))
             ax.scatter(Trajs[j].x[cp] * lengthscale, Trajs[j].y[cp] * lengthscale, s=60, color = col[j], linewidths=0, zorder=54)
             for k in np.arange(segnumb):
                 br = cp - ppf*(k+1)*tracelength  #bottom range
-                br = br * (br > 0)
+                br = int(br * (br > 0))
                 ur = cp - ppf*k*tracelength      #upper range
-                ur = ur * (ur > 0)
+                ur = int(ur * (ur > 0))
                 ax.plot((Trajs[j].x)[br:ur] * lengthscale, (Trajs[j].y)[br:ur] * lengthscale, linewidth = (linethickness(segnumb, k)-1)*2, color = colmesh(col[j], colbright[j], segnumb, k))
             ax.scatter(Trajs[j].x[cp] * lengthscale, Trajs[j].y[cp] * lengthscale, s = 30, color = colbright[j], linewidths=0, zorder=56)
             for k in np.arange(segnumb):
                 br = cp - ppf*(k+1)*tracelength  #bottom range
-                br = br * (br > 0)
+                br = int(br * (br > 0))
                 ur = cp - ppf*k*tracelength      #upper range
-                ur = ur * (ur > 0)
+                ur = int(ur * (ur > 0))
                 ax.plot((Trajs[j].x)[br:ur] * lengthscale, (Trajs[j].y)[br:ur] * lengthscale, linewidth = linethickness(segnumb, k)*0.6, color = colmesh(col[j], (1.0, 1.0, 1.0), segnumb, k))
             ax.scatter(Trajs[j].x[cp] * lengthscale, Trajs[j].y[cp] * lengthscale, s = 18, color = (1.0, 1.0, 1.0), linewidths=0, zorder=58)
         fig.savefig(outputdir+'anim/'+str(i)+'.png', facecolor='k')
